@@ -4,24 +4,26 @@ from requests.exceptions import HTTPError
 
 try:
     from urllib.parse import urlencode, quote
-except:
+except Exception:
     from urllib import urlencode, quote
 import json
 import math
 from random import uniform
+import calendar
 import time
+import datetime
 from collections import OrderedDict
 from sseclient import SSEClient
 import threading
 import socket
-from oauth2client.service_account import ServiceAccountCredentials
-from gcloud import storage
+
 from requests.packages.urllib3.contrib.appengine import is_appengine_sandbox
 from requests_toolbelt.adapters import appengine
 
-import python_jwt as jwt
-from Crypto.PublicKey import RSA
-import datetime
+from google.cloud import storage
+from google.oauth2 import service_account
+from google.auth import jwt
+from google.auth.transport.requests import Request
 
 
 def initialize_app(config):
@@ -45,9 +47,11 @@ class Firebase:
             ]
             service_account_type = type(config["serviceAccount"])
             if service_account_type is str:
-                self.credentials = ServiceAccountCredentials.from_json_keyfile_name(config["serviceAccount"], scopes)
+                self.credentials = service_account.Credentials.from_service_account_file(config["serviceAccount"],
+                                                                                         scopes=scopes)
             if service_account_type is dict:
-                self.credentials = ServiceAccountCredentials.from_json_keyfile_dict(config["serviceAccount"], scopes)
+                self.credentials = service_account.Credentials.from_service_account_info(config["serviceAccount"],
+                                                                                         scopes=scopes)
         if is_appengine_sandbox():
             # Fix error in standard GAE environment
             # is releated to https://github.com/kennethreitz/requests/issues/3187
@@ -87,18 +91,22 @@ class Auth:
         return request_object.json()
 
     def create_custom_token(self, uid, additional_claims=None):
-        service_account_email = self.credentials.service_account_email
-        private_key = RSA.importKey(self.credentials._private_key_pkcs8_pem)
+        service_account_email = self.credentials.signer_email
         payload = {
             "iss": service_account_email,
             "sub": service_account_email,
             "aud": "https://identitytoolkit.googleapis.com/google.identity.identitytoolkit.v1.IdentityToolkit",
             "uid": uid
         }
+
+        lifetime = datetime.timedelta(minutes=60)
+        exp = datetime.utcnow() + lifetime
+        payload["exp"] = calendar.timegm(exp.utctimetuple())
+
         if additional_claims:
             payload["claims"] = additional_claims
-        exp = datetime.timedelta(minutes=60)
-        return jwt.generate_jwt(payload, private_key, "RS256", exp)
+
+        return jwt.encode(self.credentials.signer, payload)
 
     def sign_in_with_custom_token(self, token):
         request_ref = "https://www.googleapis.com/identitytoolkit/v3/relyingparty/verifyCustomToken?key={0}".format(self.api_key)
@@ -248,9 +256,14 @@ class Database:
 
     def build_headers(self, token=None):
         headers = {"content-type": "application/json; charset=UTF-8"}
+
         if not token and self.credentials:
-            access_token = self.credentials.get_access_token().access_token
-            headers['Authorization'] = 'Bearer ' + access_token
+            if not self.credentials.valid:
+                req = Request()
+                self.credentials.refresh(req)
+
+            self.credentials.apply(headers, token)
+
         return headers
 
     def get(self, token=None, json_kwargs={}):
