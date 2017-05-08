@@ -565,7 +565,6 @@ class Stream:
     def close(self):
         while not self.sse and not hasattr(self.sse, 'resp'):
             time.sleep(0.001)
-        self.sse.running = False
         self.sse.close()
         self.thread.join()
         return self

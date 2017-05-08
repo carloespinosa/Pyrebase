@@ -16,12 +16,10 @@ class SSEClient(object):
         self.url = url
         self.last_id = last_id
         self.retry = retry
-        self.running = True
         # Optional support for passing in a requests.Session()
         self.session = session
         # function for building auth header when token expires
         self.build_headers = build_headers
-        self.start_time = None
         # Any extra kwargs will be fed into the requests.get call later.
         self.requests_kwargs = kwargs
 
@@ -44,10 +42,10 @@ class SSEClient(object):
         headers = self.build_headers()
         self.requests_kwargs['headers'].update(headers)
         # Use session if set.  Otherwise fall back to requests module.
-        self.requester = self.session or requests
-        self.resp = self.requester.get(self.url, stream=True, **self.requests_kwargs)
+        requester = self.session or requests
+        self.resp = requester.get(self.url, stream=True, **self.requests_kwargs)
 
-        self.resp_iterator = self.resp.iter_content(decode_unicode=True)
+        self.resp_iterator = self.resp.iter_content(chunk_size=1024, decode_unicode=True)
 
         # TODO: Ensure we're handling redirects.  Might also stick the 'origin'
         # attribute on Events like the Javascript spec requires.
@@ -74,6 +72,7 @@ class SSEClient(object):
                 self.buf = head + sep
                 continue
 
+        # TODO: This part might need to revert to the original
         split = re.split(end_of_field, self.buf)
         head = split[0]
         tail = "".join(split[1:])
