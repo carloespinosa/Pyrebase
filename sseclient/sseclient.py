@@ -45,7 +45,7 @@ class SSEClient(object):
         requester = self.session or requests
         self.resp = requester.get(self.url, stream=True, **self.requests_kwargs)
 
-        self.resp_iterator = self.resp.iter_content(chunk_size=1024, decode_unicode=True)
+        self.resp_iterator = self.resp.iter_content(decode_unicode=True)
 
         # TODO: Ensure we're handling redirects.  Might also stick the 'origin'
         # attribute on Events like the Javascript spec requires.
