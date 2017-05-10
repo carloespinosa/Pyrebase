@@ -552,9 +552,9 @@ class ClosableSSEClient(SSEClient):
         self.should_connect = True
         super(ClosableSSEClient, self).__init__(*args, **kwargs)
 
-    def _connect(self):
+    def _connect(self, *args, **kwargs):
         if self.should_connect:
-            super(ClosableSSEClient, self)._connect()
+            super(ClosableSSEClient, self)._connect(*args, **kwargs)
         else:
             raise StopIteration()
 
