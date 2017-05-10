@@ -1,11 +1,12 @@
 import re
 import time
 import warnings
-import threading
 import six
+import logging
 
 import requests
 
+logger = logging.getLogger("firebase_listener")
 
 # Technically, we should support streams that mix line endings.  This regex,
 # however, assumes that a system will provide consistent line endings.
@@ -43,6 +44,7 @@ class SSEClient(object):
         self.requests_kwargs['headers'].update(headers)
         # Use session if set.  Otherwise fall back to requests module.
         requester = self.session or requests
+        logger.info('Setting up streaming from Firebase ...')
         self.resp = requester.get(self.url, stream=True, **self.requests_kwargs)
 
         self.resp_iterator = self.resp.iter_content(decode_unicode=True)
@@ -79,6 +81,9 @@ class SSEClient(object):
 
         self.buf = tail
         msg = Event.parse(head)
+
+        # Log the received event in details
+        logger.info(msg.dump())
 
         if msg.data == "credential is no longer valid":
             self._connect()

@@ -12,6 +12,7 @@ from random import uniform
 import calendar
 import time
 import datetime
+import logging
 from collections import OrderedDict
 from sseclient import SSEClient
 import threading
@@ -24,6 +25,9 @@ from google.cloud import storage
 from google.oauth2 import service_account
 from google.auth import jwt
 from google.auth.transport.requests import Request
+
+
+logger = logging.getLogger("firebase_listener")
 
 
 def initialize_app(config):
@@ -255,15 +259,22 @@ class Database:
         return request_ref
 
     def build_headers(self, token=None):
+        logger.info('Running `build_headers()`...')
+
         headers = {"content-type": "application/json; charset=UTF-8"}
 
         if not token and self.credentials:
             if not self.credentials.valid:
+                logger.info('Access token "{}" is obsolete.'.format(self.credentials.token))
+                logger.info('Refreshing access token...')
+
                 req = Request()
                 self.credentials.refresh(req)
+                logger.info('New access token obtained: "{}"'.format(self.credentials.token))
 
             self.credentials.apply(headers, token)
 
+        logger.info('Headers built: "{}"'.format(headers))
         return headers
 
     def get(self, token=None, json_kwargs={}):
