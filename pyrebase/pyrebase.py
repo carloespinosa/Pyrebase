@@ -276,7 +276,7 @@ class Database:
 
                     time_left = expiry - utcnow
 
-                    log_entry_tmpl = '\{"force_refresh": {}, "valid_credentials": {}, "expiry": {}, "time_left": {}, "time_left_adj": {}\}'
+                    log_entry_tmpl = '{{"force_refresh": {}, "valid_credentials": {}, "expiry": {}, "time_left": {}, "time_left_adj": {}}}'
                     logger.info(log_entry_tmpl.format(force_refresh, self.credentials.valid, expiry, time_left, time_left_adj))
 
                 req = Request()

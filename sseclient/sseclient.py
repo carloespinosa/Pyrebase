@@ -40,7 +40,7 @@ class SSEClient(object):
     def _connect(self, *args, **kwargs):
         if self.last_id:
             self.requests_kwargs['headers']['Last-Event-ID'] = self.last_id
-        headers = self.build_headers(None, kwargs.get('force_credentials_refresh', False))
+        headers = self.build_headers(force_refresh=kwargs.get('force_credentials_refresh', False))
         self.requests_kwargs['headers'].update(headers)
         # Use session if set.  Otherwise fall back to requests module.
         requester = self.session or requests
@@ -85,7 +85,7 @@ class SSEClient(object):
         # Log the received event in details
         logger.info(msg.dump())
 
-        if msg.data == "credential is no longer valid":
+        if msg.event == "auth_revoked":
             self._connect(force_credentials_refresh=True)
             return None
 
