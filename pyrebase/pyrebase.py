@@ -266,16 +266,18 @@ class Database:
         if not token and self.credentials:
             if force_refresh or not self.credentials.valid:
                 expiry = self.credentials.expiry
-                utcnow = datetime.datetime.utcnow()
-                CLOCK_SKEW = datetime.timedelta(seconds=300)
 
-                utcnow_adj = utcnow - CLOCK_SKEW
-                time_left_adj = expiry - utcnow_adj
+                if expiry:
+                    utcnow = datetime.datetime.utcnow()
+                    CLOCK_SKEW = datetime.timedelta(seconds=300)
 
-                time_left = expiry - utcnow
+                    utcnow_adj = utcnow - CLOCK_SKEW
+                    time_left_adj = expiry - utcnow_adj
 
-                log_entry_tmpl = '\{"force_refresh": {}, "valid_credentials": {}, "expiry": {}, "time_left": {}, "time_left_adj": {}\}'
-                logger.info(log_entry_tmpl.format(force_refresh, self.credentials.valid, expiry, time_left, time_left_adj))
+                    time_left = expiry - utcnow
+
+                    log_entry_tmpl = '\{"force_refresh": {}, "valid_credentials": {}, "expiry": {}, "time_left": {}, "time_left_adj": {}\}'
+                    logger.info(log_entry_tmpl.format(force_refresh, self.credentials.valid, expiry, time_left, time_left_adj))
 
                 req = Request()
                 self.credentials.refresh(req)
