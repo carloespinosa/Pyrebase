@@ -258,15 +258,24 @@ class Database:
         self.build_query = {}
         return request_ref
 
-    def build_headers(self, token=None):
+    def build_headers(self, token=None, force_refresh=False):
         logger.info('Running `build_headers()`...')
 
         headers = {"content-type": "application/json; charset=UTF-8"}
 
         if not token and self.credentials:
-            if not self.credentials.valid:
-                logger.info('Access token "{}" is obsolete.'.format(self.credentials.token))
-                logger.info('Refreshing access token...')
+            if force_refresh or not self.credentials.valid:
+                expiry = self.credentials.expiry
+                utcnow = datetime.datetime.utcnow()
+                CLOCK_SKEW = datetime.timedelta(seconds=300)
+
+                utcnow_adj = utcnow - CLOCK_SKEW
+                time_left_adj = expiry - utcnow_adj
+
+                time_left = expiry - utcnow
+
+                log_entry_tmpl = '\{"force_refresh": {}, "valid_credentials": {}, "expiry": {}, "time_left": {}, "time_left_adj": {}\}'
+                logger.info(log_entry_tmpl.format(force_refresh, self.credentials.valid, expiry, time_left, time_left_adj))
 
                 req = Request()
                 self.credentials.refresh(req)
