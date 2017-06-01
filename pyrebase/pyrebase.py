@@ -27,7 +27,7 @@ from google.auth import jwt
 from google.auth.transport.requests import Request
 
 
-logger = logging.getLogger("firebase_listener")
+logger = logging.getLogger(__name__)
 
 
 def initialize_app(config):
@@ -526,15 +526,6 @@ class Pyre:
         return self.item[0]
 
 
-class KeepAuthSession(Session):
-    """
-    A session that doesn't drop Authentication on redirects between domains.
-    """
-
-    def rebuild_auth(self, prepared_request, response):
-        pass
-
-
 class ClosableSSEClient(SSEClient):
     def __init__(self, *args, **kwargs):
         self.should_connect = True
@@ -563,27 +554,23 @@ class Stream:
         self.thread = None
         self.start()
 
-    def make_session(self):
-        """
-        Return a custom session object to be passed to the ClosableSSEClient.
-        """
-        session = KeepAuthSession()
-        return session
-
     def start(self):
         self.thread = threading.Thread(target=self.start_stream)
         self.thread.start()
         return self
 
     def start_stream(self):
-        self.sse = ClosableSSEClient(self.url, session=self.make_session(), build_headers=self.build_headers)
-        for msg in self.sse:
-            if msg:
-                msg_data = json.loads(msg.data)
-                msg_data["event"] = msg.event
-                if self.stream_id:
-                    msg_data["stream_id"] = self.stream_id
-                self.stream_handler(msg_data)
+        try:
+            self.sse = ClosableSSEClient(self.url, session=Session(), build_headers=self.build_headers)
+            for msg in self.sse:
+                if msg:
+                    msg_data = json.loads(msg.data)
+                    msg_data["event"] = msg.event
+                    if self.stream_id:
+                        msg_data["stream_id"] = self.stream_id
+                    self.stream_handler(msg_data)
+        except Exception as ex:
+            logger.error(ex)
 
     def close(self):
         while not self.sse and not hasattr(self.sse, 'resp'):

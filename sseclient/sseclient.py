@@ -6,7 +6,7 @@ import logging
 
 import requests
 
-logger = logging.getLogger("firebase_listener")
+logger = logging.getLogger(__name__)
 
 # Technically, we should support streams that mix line endings.  This regex,
 # however, assumes that a system will provide consistent line endings.
@@ -74,7 +74,6 @@ class SSEClient(object):
                 self.buf = head + sep
                 continue
 
-        # TODO: This part might need to revert to the original
         split = re.split(end_of_field, self.buf)
         head = split[0]
         tail = "".join(split[1:])
