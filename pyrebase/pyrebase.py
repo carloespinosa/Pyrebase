@@ -258,34 +258,22 @@ class Database:
         self.build_query = {}
         return request_ref
 
-    def build_headers(self, token=None, force_refresh=False):
-        logger.info('Running `build_headers()`...')
-
+    def build_headers(self, token=None):
         headers = {"content-type": "application/json; charset=UTF-8"}
 
-        if not token and self.credentials:
-            if force_refresh or not self.credentials.valid:
-                expiry = self.credentials.expiry
-
-                if expiry:
-                    utcnow = datetime.datetime.utcnow()
-                    CLOCK_SKEW = datetime.timedelta(seconds=300)
-
-                    utcnow_adj = utcnow - CLOCK_SKEW
-                    time_left_adj = expiry - utcnow_adj
-
-                    time_left = expiry - utcnow
-
-                    log_entry_tmpl = '{{"force_refresh": {}, "valid_credentials": {}, "expiry": {}, "time_left": {}, "time_left_adj": {}}}'
-                    logger.info(log_entry_tmpl.format(force_refresh, self.credentials.valid, expiry, time_left, time_left_adj))
-
+        if self.credentials:
+            # if no token is provided and the token embedded in `self.credentials` is invalid due to being expired,
+            # then refresh the credentials object to obtain a new access token.
+            if not token and not self.credentials.valid:
                 req = Request()
                 self.credentials.refresh(req)
-                logger.info('New access token obtained: "{}"'.format(self.credentials.token))
+                logger.debug('New access token obtained: "{}"'.format(self.credentials.token))
 
+            # The provided token, if exists, has higher precedence than the token embedded in `self.credentials`.
             self.credentials.apply(headers, token)
 
-        logger.info('Headers built: "{}"'.format(headers))
+        logger.debug('Headers built: "{}"'.format(headers))
+
         return headers
 
     def get(self, token=None, json_kwargs={}):
@@ -552,9 +540,9 @@ class ClosableSSEClient(SSEClient):
         self.should_connect = True
         super(ClosableSSEClient, self).__init__(*args, **kwargs)
 
-    def _connect(self, *args, **kwargs):
+    def _connect(self):
         if self.should_connect:
-            super(ClosableSSEClient, self)._connect(*args, **kwargs)
+            super(ClosableSSEClient, self)._connect()
         else:
             raise StopIteration()
 

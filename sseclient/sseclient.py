@@ -37,10 +37,10 @@ class SSEClient(object):
 
         self._connect()
 
-    def _connect(self, *args, **kwargs):
+    def _connect(self):
         if self.last_id:
             self.requests_kwargs['headers']['Last-Event-ID'] = self.last_id
-        headers = self.build_headers(force_refresh=kwargs.get('force_credentials_refresh', False))
+        headers = self.build_headers()
         self.requests_kwargs['headers'].update(headers)
         # Use session if set.  Otherwise fall back to requests module.
         requester = self.session or requests
@@ -86,7 +86,7 @@ class SSEClient(object):
         logger.info(msg.dump())
 
         if msg.event == "auth_revoked":
-            self._connect(force_credentials_refresh=True)
+            self._connect()
             return None
 
         if msg.data == 'null':

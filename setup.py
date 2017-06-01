@@ -17,7 +17,7 @@ setup(
     packages=find_packages(exclude=['tests']),
     install_requires=[
         'google-cloud-storage==1.1.1',
-        'google-auth==1.0.0',
+        'google-auth==1.0.1',
         'requests==2.13.0',
         'requests-toolbelt==0.7.1'
     ]
