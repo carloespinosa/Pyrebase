@@ -526,6 +526,15 @@ class Pyre:
         return self.item[0]
 
 
+class KeepAuthSession(Session):
+    """
+    A session that doesn't drop Authentication on redirects between domains.
+    """
+
+    def rebuild_auth(self, prepared_request, response):
+        pass
+
+
 class ClosableSSEClient(SSEClient):
     def __init__(self, *args, **kwargs):
         self.should_connect = True
@@ -554,6 +563,13 @@ class Stream:
         self.thread = None
         self.start()
 
+    def make_session(self):
+        """
+        Return a custom session object to be passed to the ClosableSSEClient.
+        """
+        session = KeepAuthSession()
+        return session
+
     def start(self):
         self.thread = threading.Thread(target=self.start_stream)
         self.thread.start()
@@ -561,7 +577,7 @@ class Stream:
 
     def start_stream(self):
         try:
-            self.sse = ClosableSSEClient(self.url, session=Session(), build_headers=self.build_headers)
+            self.sse = ClosableSSEClient(self.url, session=self.make_session(), build_headers=self.build_headers)
             for msg in self.sse:
                 if msg:
                     msg_data = json.loads(msg.data)
