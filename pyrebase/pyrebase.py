@@ -586,7 +586,7 @@ class Stream:
                         msg_data["stream_id"] = self.stream_id
                     self.stream_handler(msg_data)
         except Exception as ex:
-            logger.error(ex)
+            logger.exception(ex)
 
     def close(self):
         while not self.sse and not hasattr(self.sse, 'resp'):
