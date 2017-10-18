@@ -104,7 +104,7 @@ class Auth:
         }
 
         lifetime = datetime.timedelta(minutes=60)
-        exp = datetime.utcnow() + lifetime
+        exp = datetime.datetime.utcnow() + lifetime
         payload["exp"] = calendar.timegm(exp.utctimetuple())
 
         if additional_claims:
