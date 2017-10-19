@@ -23,7 +23,8 @@ from requests_toolbelt.adapters import appengine
 
 from google.cloud import storage
 from google.oauth2 import service_account
-from google.auth import jwt
+import python_jwt as jwt
+from Crypto.PublicKey import RSA
 from google.auth.transport.requests import Request
 
 
@@ -53,9 +54,16 @@ class Firebase:
             if service_account_type is str:
                 self.credentials = service_account.Credentials.from_service_account_file(config["serviceAccount"],
                                                                                          scopes=scopes)
+                with open(config["serviceAccount"]) as data_file:
+                    data = json.load(data_file)
+                    self.private_key = data.get("private_key")
+
             if service_account_type is dict:
                 self.credentials = service_account.Credentials.from_service_account_info(config["serviceAccount"],
                                                                                          scopes=scopes)
+                self.private_key = service_account_type.get('private_key')
+
+
         if is_appengine_sandbox():
             # Fix error in standard GAE environment
             # is releated to https://github.com/kennethreitz/requests/issues/3187
@@ -68,7 +76,7 @@ class Firebase:
             self.requests.mount(scheme, adapter)
 
     def auth(self):
-        return Auth(self.api_key, self.requests, self.credentials)
+        return Auth(self.api_key, self.requests, self.credentials, self.private_key)
 
     def database(self):
         return Database(self.credentials, self.api_key, self.database_url, self.requests)
@@ -79,11 +87,12 @@ class Firebase:
 
 class Auth:
     """ Authentication Service """
-    def __init__(self, api_key, requests, credentials):
+    def __init__(self, api_key, requests, credentials, private_key):
         self.api_key = api_key
         self.current_user = None
         self.requests = requests
         self.credentials = credentials
+        self.private_key = private_key
 
     def sign_in_with_email_and_password(self, email, password):
         request_ref = "https://www.googleapis.com/identitytoolkit/v3/relyingparty/verifyPassword?key={0}".format(self.api_key)
@@ -96,6 +105,7 @@ class Auth:
 
     def create_custom_token(self, uid, additional_claims=None):
         service_account_email = self.credentials.signer_email
+        private_key = RSA.importKey(self.private_key)
         payload = {
             "iss": service_account_email,
             "sub": service_account_email,
@@ -103,14 +113,12 @@ class Auth:
             "uid": uid
         }
 
-        lifetime = datetime.timedelta(minutes=60)
-        exp = datetime.datetime.utcnow() + lifetime
-        payload["exp"] = calendar.timegm(exp.utctimetuple())
-
         if additional_claims:
             payload["claims"] = additional_claims
 
-        return jwt.encode(self.credentials.signer, payload)
+        exp = datetime.timedelta(minutes=60)
+
+        return jwt.generate_jwt(payload, private_key, "RS256", exp)
 
     def sign_in_with_custom_token(self, token):
         request_ref = "https://www.googleapis.com/identitytoolkit/v3/relyingparty/verifyCustomToken?key={0}".format(self.api_key)
